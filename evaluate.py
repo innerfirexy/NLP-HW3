@@ -1,7 +1,9 @@
+import time
 from decoder import Parser
 from extract_training_data import FeatureExtractor
 from conll_reader import conll_reader
 import sys
+import tensorflow as tf
 
 
 def compare_parser(target, predict):
@@ -13,10 +15,18 @@ def compare_parser(target, predict):
     labeled_correct = len(predict_labeled.intersection(target_labeled))
     unlabeled_correct = len(predict_unlabeled.intersection(target_unlabeled))
     num_words = len(predict_labeled)
+    if num_words == 0:
+        print("Warning: sentence with no words")
     return labeled_correct, unlabeled_correct, num_words
 
 
 if __name__ == "__main__":
+    start = time.time()
+    print("Start time: ", start)
+    # convert start time to readable format
+    print("Start time: ", time.ctime(start))
+
+    tf.compat.v1.disable_eager_execution()
 
     WORD_VOCAB_FILE = "data/words.vocab"
     POS_VOCAB_FILE = "data/pos.vocab"
@@ -33,7 +43,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
-    parser = Parser(extractor, sys.argv[1])
+    # parser = Parser(extractor, sys.argv[1])
+    parser = Parser(extractor, "data/model.h5")
 
     total_labeled_correct = 0
     total_unlabeled_correct = 0
@@ -43,11 +54,15 @@ if __name__ == "__main__":
     uas_list = []
 
     count = 0
-    with open(sys.argv[2], "r") as in_file:
+    with open("data/dev.conll", "r") as in_file:
         print("Evaluating. (Each . represents 100 test dependency trees)")
         for dtree in conll_reader(in_file):
             words = dtree.words()
             pos = dtree.pos()
+            # words = [None, "They", "did", "n't", "."]
+            # pos = [None, "PRP", "VBD", "RB", "."]
+            # words = [None, "How", "'s", "that", "again", "?"]
+            # pos = [None, "WRB", "VBZ", "DT", "RB", "."]
             predict = parser.parse_sentence(words, pos)
             labeled_correct, unlabeled_correct, num_words = compare_parser(
                 dtree, predict
@@ -61,7 +76,8 @@ if __name__ == "__main__":
             total_words += num_words
             count += 1
             if count % 100 == 0:
-                print(".", end="")
+                # print(".", end="")
+                print(str(count))
                 sys.stdout.flush()
     print()
 
@@ -76,3 +92,4 @@ if __name__ == "__main__":
     print("Micro Avg. Unlabeled Attachment Score: {}\n".format(uas_micro))
     print("Macro Avg. Labeled Attachment Score: {}".format(las_macro))
     print("Macro Avg. Unlabeled Attachment Score: {}".format(uas_macro))
+    print("Time: {}".format(time.time() - start))

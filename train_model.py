@@ -41,11 +41,14 @@ if __name__ == "__main__":
         len(extractor.pos_vocab),
         len(extractor.output_labels),
     )
-    inputs = np.load(sys.argv[1])
-    outputs = np.load(sys.argv[2])
+    # inputs = np.load(sys.argv[1])
+    inputs = np.load("data/input_train.npy")
+    # outputs = np.load(sys.argv[2])
+    outputs = np.load("data/target_train.npy")
     print("Done loading data.")
 
     # Now train the model
     model.fit(inputs, outputs, epochs=5, batch_size=100)
 
-    model.save(sys.argv[3])
+    # model.save(sys.argv[3])
+    model.save("data/model.h5")

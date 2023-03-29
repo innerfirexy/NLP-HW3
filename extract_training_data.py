@@ -177,7 +177,7 @@ class FeatureExtractor(object):
         for i in range(3):
             if len(state.stack) > i:
                 idx = state.stack[-i - 1]
-                word = words[idx]
+                word = words[idx] if not words[idx] else words[idx].lower()
                 # print("word", word)
                 if word in self.word_vocab:
                     rep[i] = self.word_vocab[word]
@@ -191,7 +191,7 @@ class FeatureExtractor(object):
                 rep[i] = self.word_vocab["<NULL>"]
             if len(state.buffer) > i:
                 idx = state.buffer[-i - 1]
-                word = words[idx]
+                word = words[idx] if not words[idx] else words[idx].lower()
                 # print("word", word)
                 if word in self.word_vocab:
                     rep[i + 3] = self.word_vocab[word]
@@ -214,14 +214,14 @@ class FeatureExtractor(object):
         # return a numpy array of length 91
         # use keras.utils.to_categorical to convert the transition and label into a one-hot vector
         # output_labels is a dictionary of (transition, label) pairs and their indices
-        print("output_pair", output_pair)
-        print("self.output_labels", self.output_labels)
-        print("output_pair in self.output_labels", output_pair in self.output_labels)
-        print("self.output_labels[output_pair]", self.output_labels[output_pair])
-        print(
-            "keras.utils.to_categorical(self.output_labels[output_pair], 91)",
-            keras.utils.to_categorical(self.output_labels[output_pair], 91),
-        )
+        # print("output_pair", output_pair)
+        # print("self.output_labels", self.output_labels)
+        # print("output_pair in self.output_labels", output_pair in self.output_labels)
+        # print("self.output_labels[output_pair]", self.output_labels[output_pair])
+        # print(
+        #     "keras.utils.to_categorical(self.output_labels[output_pair], 91)",
+        #     keras.utils.to_categorical(self.output_labels[output_pair], 91),
+        # )
         return keras.utils.to_categorical(self.output_labels[output_pair], 91)
 
 
@@ -236,7 +236,7 @@ def get_training_matrices(extractor, in_file):
             inputs.append(extractor.get_input_representation(words, pos, state))
             outputs.append(extractor.get_output_representation(output_pair))
         if count % 100 == 0:
-            sys.stdout.write(".")
+            sys.stdout.write(str(count) + "\n")
             sys.stdout.flush()
         count += 1
     sys.stdout.write("\n")
