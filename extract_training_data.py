@@ -2,6 +2,7 @@ from conll_reader import DependencyStructure, conll_reader
 from collections import defaultdict
 import copy
 import sys
+
 import keras
 import numpy as np
 
@@ -53,7 +54,6 @@ class RootDummy(object):
 
 
 def get_training_instances(dep_structure):
-
     deprels = dep_structure.deprels
 
     sorted_nodes = [k for k, v in sorted(deprels.items())]
@@ -141,6 +141,7 @@ dep_relations = [
 class FeatureExtractor(object):
     def __init__(self, word_vocab_file, pos_vocab_file):
         self.word_vocab = self.read_vocab(word_vocab_file)
+        # print("word_vocab", self.word_vocab)
         self.pos_vocab = self.read_vocab(pos_vocab_file)
         self.output_labels = self.make_output_labels()
 
@@ -163,11 +164,65 @@ class FeatureExtractor(object):
 
     def get_input_representation(self, words, pos, state):
         # TODO: Write this method for Part 2
-        return np.zeros(6)
+        # print("words", words)
+        # self.word_vocab is a dictionary of words and their indices
+        # state contains two lists: stack and buffer
+        # return a numpy array of the indices of the first three words in the stack and buffer
+        # if there are less than three words in the stack or buffer, pad with the index for "<NULL>"
+        # print("words", words)
+        # print("pos", pos)
+        # print("state.stack", state.stack)
+        # print("state.buffer", state.buffer)
+        rep = np.zeros(6)
+        for i in range(3):
+            if len(state.stack) > i:
+                idx = state.stack[-i - 1]
+                word = words[idx]
+                # print("word", word)
+                if word in self.word_vocab:
+                    rep[i] = self.word_vocab[word]
+                elif word is None:
+                    rep[i] = self.word_vocab["<ROOT>"]
+                elif pos[idx] in self.word_vocab:
+                    rep[i] = self.word_vocab[pos[idx]]
+                else:
+                    rep[i] = self.word_vocab["<UNK>"]
+            else:
+                rep[i] = self.word_vocab["<NULL>"]
+            if len(state.buffer) > i:
+                idx = state.buffer[-i - 1]
+                word = words[idx]
+                # print("word", word)
+                if word in self.word_vocab:
+                    rep[i + 3] = self.word_vocab[word]
+                elif word is None:
+                    rep[i + 3] = self.word_vocab["<ROOT>"]
+                elif pos[idx] in self.word_vocab:
+                    rep[i + 3] = self.word_vocab[pos[idx]]
+                else:
+                    rep[i + 3] = self.word_vocab["<UNK>"]
+            else:
+                rep[i + 3] = self.word_vocab["<NULL>"]
+        # print("rep", rep)
+        return rep
 
     def get_output_representation(self, output_pair):
         # TODO: Write this method for Part 2
-        return np.zeros(91)
+        # each output_pair is a tuple of (transition, label)
+        # there are three possible transitions: "shift", "left_arc", "right_arc"
+        # there are 45 possible labels, all included in the dep_relations list
+        # return a numpy array of length 91
+        # use keras.utils.to_categorical to convert the transition and label into a one-hot vector
+        # output_labels is a dictionary of (transition, label) pairs and their indices
+        print("output_pair", output_pair)
+        print("self.output_labels", self.output_labels)
+        print("output_pair in self.output_labels", output_pair in self.output_labels)
+        print("self.output_labels[output_pair]", self.output_labels[output_pair])
+        print(
+            "keras.utils.to_categorical(self.output_labels[output_pair], 91)",
+            keras.utils.to_categorical(self.output_labels[output_pair], 91),
+        )
+        return keras.utils.to_categorical(self.output_labels[output_pair], 91)
 
 
 def get_training_matrices(extractor, in_file):
@@ -189,7 +244,7 @@ def get_training_matrices(extractor, in_file):
 
 
 if __name__ == "__main__":
-
+    # print("Loading data... (this might take a minute)")
     WORD_VOCAB_FILE = "data/words.vocab"
     POS_VOCAB_FILE = "data/pos.vocab"
 
@@ -204,11 +259,18 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    with open(sys.argv[1], "r") as in_file:
-
+    with open("data/train.conll", "r") as in_file:
         extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
         print("Starting feature extraction... (each . represents 100 sentences)")
         inputs, outputs = get_training_matrices(extractor, in_file)
         print("Writing output...")
-        np.save(sys.argv[2], inputs)
-        np.save(sys.argv[3], outputs)
+        np.save("data/input_train.npy", inputs)
+        np.save("data/target_train.npy", outputs)
+
+    # with open(sys.argv[1], "r") as in_file:
+    #     extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
+    #     print("Starting feature extraction... (each . represents 100 sentences)")
+    #     inputs, outputs = get_training_matrices(extractor, in_file)
+    #     print("Writing output...")
+    #     np.save(sys.argv[2], inputs)
+    #     np.save(sys.argv[3], outputs)
