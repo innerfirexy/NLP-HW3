@@ -6,6 +6,8 @@ import sys
 import keras
 import numpy as np
 
+from dep_utils import conll_reader
+
 
 class State(object):
     def __init__(self, sentence=[]):
@@ -135,7 +137,35 @@ dep_relations = [
     "neg",
     "dt",
     "det",
+    'nummod',
+    'compound',
+    'case',
+    'nmod:poss',
+    'nmod',
+    'acl',
+    'nmod:tmod',
+    'nmod:npmod',
+    'acl:relcl',
+    'det:predet'
 ]
+
+
+def read_dep_relations():
+    dep_relations = []
+
+    input_files = ['data/train.conll', 'data/dev.conll', 'data/test.conll']
+    for input_file in input_files:
+        with open(input_file, 'r') as f:
+            train_trees = list(conll_reader(f))
+        for tree in train_trees:
+            for k, v in tree.deprels.items():
+                if v.deprel not in dep_relations:
+                    dep_relations.append(v.deprel)
+
+    return dep_relations
+
+dep_relations = read_dep_relations()
+
 
 
 class FeatureExtractor(object):
@@ -222,7 +252,8 @@ class FeatureExtractor(object):
         #     "keras.utils.to_categorical(self.output_labels[output_pair], 91)",
         #     keras.utils.to_categorical(self.output_labels[output_pair], 91),
         # )
-        return keras.utils.to_categorical(self.output_labels[output_pair], 91)
+        # return keras.utils.to_categorical(self.output_labels[output_pair], 91) # original -xy
+        return keras.utils.to_categorical(self.output_labels[output_pair], len(self.output_labels)) # xy
 
 
 def get_training_matrices(extractor, in_file):
