@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
     # parser = Parser(extractor, sys.argv[1])
-    parser = Parser(extractor, "data/model.h5")
+    parser = Parser(extractor, "model.h5", backend='tf')
 
     total_labeled_correct = 0
     total_unlabeled_correct = 0

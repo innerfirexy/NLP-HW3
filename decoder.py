@@ -6,6 +6,8 @@ import sys
 import numpy as np
 import tensorflow as tf
 import keras
+import torch
+from train_pt import Model as PyTorchModel
 
 from extract_training_data import FeatureExtractor, State
 
@@ -13,8 +15,18 @@ tf.compat.v1.disable_eager_execution()
 
 
 class Parser(object):
-    def __init__(self, extractor, modelfile):
-        self.model = keras.models.load_model(modelfile)
+    def __init__(self, extractor, modelfile, backend='pt'):
+        if backend == 'pt':
+            self.pt_model = PyTorchModel(
+                word_vocab_size=len(extractor.word_vocab),
+                pos_vocab_size=len(extractor.pos_vocab),
+                output_size=len(extractor.output_labels)
+            )
+            self.pt_model.load_state_dict(torch.load(modelfile))
+        elif backend == 'tf':
+            self.model = keras.models.load_model(modelfile)
+        self.backend = backend
+        
         self.extractor = extractor
 
         # The following dictionary from indices to output actions will be useful
@@ -39,7 +51,15 @@ class Parser(object):
             current_state = self.extractor.get_input_representation(words, pos, state)
             # print("current_state.shape", current_state.shape)
             # print("current_state", current_state)
-            prediction = self.model.predict(current_state.reshape(1, 6))[0]
+
+            if self.backend == 'pt':
+                with torch.no_grad():
+                    input_tensor = torch.tensor(current_state.reshape(1, 6), dtype=torch.long)
+                    prediction = self.pt_model(input_tensor).detach().numpy()[0]
+            elif self.backend == 'tf':
+                prediction = self.model.predict(current_state.reshape(1, 6))[0]
+
+
             # print("prediction.shape", prediction.shape)
             # print("prediction", prediction)
             # print("=====================================")
