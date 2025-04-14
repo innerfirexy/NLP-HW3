@@ -1,5 +1,5 @@
 import time
-from decoder import Parser
+from parser import Parser
 from extract_training_data import FeatureExtractor
 from conll_reader import conll_reader
 import sys
