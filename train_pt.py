@@ -1,6 +1,7 @@
 from extract_training_data import FeatureExtractor
 import sys
 import numpy as np
+import datetime
 
 import torch
 import torch.nn as nn
@@ -91,4 +92,5 @@ if __name__ == "__main__":
         print(f'Epoch {epoch+1}/{n_epochs} - Loss: {avg_loss:.4f}')
     
     # save model
-    torch.save(model.state_dict(), "model.pt")
+    now = datetime.datetime.now()
+    torch.save(model.state_dict(), f'model_{now}.pt')

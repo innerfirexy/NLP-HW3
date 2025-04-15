@@ -4,6 +4,10 @@ from extract_training_data import FeatureExtractor
 from dep_utils import conll_reader
 import sys
 from tqdm import tqdm
+import argparse
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument("--model", type=str, default="model.pt")
 
 
 def compare_parser(target, predict):
@@ -21,6 +25,9 @@ def compare_parser(target, predict):
 
 
 if __name__ == "__main__":
+    # parse arguments
+    args = argparser.parse_args()
+
     start = time.time()
     print("Start time: ", start)
     # convert start time to readable format
@@ -41,7 +48,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
-    parser = Parser(extractor, 'model.pt', backend='pt')
+    parser = Parser(extractor, args.model, backend='pt')
 
     total_labeled_correct = 0
     total_unlabeled_correct = 0
@@ -49,35 +56,39 @@ if __name__ == "__main__":
     las_list = []
     uas_list = []
 
-    with open("data/dev.conll", "r") as in_file:
-        print("Evaluating..")
-        dtrees = list(conll_reader(in_file))
-        for dtree in tqdm(dtrees):
-            words = dtree.words()
-            pos = dtree.pos()
-            predict = parser.parse_sentence(words, pos)
+    eval_files = ['data/dev.conll', 'data/test.conll']
+    for eval_file in eval_files:
+        print(f'Evaluating on {eval_file}')
+        with open(eval_file, 'r') as in_file:
+            dtrees = list(conll_reader(in_file))
+            for dtree in tqdm(dtrees):
+                words = dtree.words()
+                pos = dtree.pos()
+                predict = parser.parse_sentence(words, pos)
 
-            labeled_correct, unlabeled_correct, num_words = compare_parser(
-                dtree, predict
-            )
-            las_s = labeled_correct / float(num_words)
-            uas_s = unlabeled_correct / float(num_words)
-            las_list.append(las_s)
-            uas_list.append(uas_s)
+                labeled_correct, unlabeled_correct, num_words = compare_parser(
+                    dtree, predict
+                )
+                las_s = labeled_correct / float(num_words)
+                uas_s = unlabeled_correct / float(num_words)
+                las_list.append(las_s)
+                uas_list.append(uas_s)
 
-            total_labeled_correct += labeled_correct
-            total_unlabeled_correct += unlabeled_correct
-            total_words += num_words
-    print()
+                total_labeled_correct += labeled_correct
+                total_unlabeled_correct += unlabeled_correct
+                total_words += num_words
 
-    las_micro = total_labeled_correct / float(total_words)
-    uas_micro = total_unlabeled_correct / float(total_words)
-    las_macro = sum(las_list) / len(las_list)
-    uas_macro = sum(uas_list) / len(uas_list)
+        las_micro = total_labeled_correct / float(total_words)
+        uas_micro = total_unlabeled_correct / float(total_words)
+        las_macro = sum(las_list) / len(las_list)
+        uas_macro = sum(uas_list) / len(uas_list)
 
-    print("{} sentence.\n".format(len(las_list)))
-    print("Micro Avg. Labeled Attachment Score: {}".format(las_micro))
-    print("Micro Avg. Unlabeled Attachment Score: {}".format(uas_micro))
-    print("Macro Avg. Labeled Attachment Score: {}".format(las_macro))
-    print("Macro Avg. Unlabeled Attachment Score: {}".format(uas_macro))
+        print("{} sentence.".format(len(las_list)))
+        print("Micro Avg. Labeled Attachment Score: {}".format(las_micro))
+        print("Micro Avg. Unlabeled Attachment Score: {}".format(uas_micro))
+        print("Macro Avg. Labeled Attachment Score: {}".format(las_macro))
+        print("Macro Avg. Unlabeled Attachment Score: {}".format(uas_macro))
+        print()
+
+    # time
     print("Time: {}".format(time.time() - start))

@@ -1,7 +1,9 @@
-from conll_reader import DependencyStructure, conll_reader
+# from conll_reader import DependencyStructure, conll_reader
 from collections import defaultdict
 import copy
 import sys
+from tqdm import tqdm
+from typing import Tuple, List
 
 import keras
 import numpy as np
@@ -91,63 +93,8 @@ def get_training_instances(dep_structure):
     return seq
 
 
-dep_relations = [
-    "tmod",
-    "vmod",
-    "csubjpass",
-    "rcmod",
-    "ccomp",
-    "poss",
-    "parataxis",
-    "appos",
-    "dep",
-    "iobj",
-    "pobj",
-    "mwe",
-    "quantmod",
-    "acomp",
-    "number",
-    "csubj",
-    "root",
-    "auxpass",
-    "prep",
-    "mark",
-    "expl",
-    "cc",
-    "npadvmod",
-    "prt",
-    "nsubj",
-    "advmod",
-    "conj",
-    "advcl",
-    "punct",
-    "aux",
-    "pcomp",
-    "discourse",
-    "nsubjpass",
-    "predet",
-    "cop",
-    "possessive",
-    "nn",
-    "xcomp",
-    "preconj",
-    "num",
-    "amod",
-    "dobj",
-    "neg",
-    "dt",
-    "det",
-    'nummod',
-    'compound',
-    'case',
-    'nmod:poss',
-    'nmod',
-    'acl',
-    'nmod:tmod',
-    'nmod:npmod',
-    'acl:relcl',
-    'det:predet'
-]
+# dep_relations_old = dep_relations = [
+#     "tmod", "vmod","csubjpass","rcmod","ccomp","poss","parataxis","appos","dep","iobj","pobj","mwe","quantmod","acomp","number","csubj","root","auxpass","prep","mark","expl","cc","npadvmod","prt","nsubj","advmod","conj","advcl","punct","aux","pcomp","discourse","nsubjpass","predet","cop","possessive","nn","xcomp","preconj","num","amod","dobj","neg","dt","det"]
 
 
 def read_dep_relations():
@@ -171,9 +118,9 @@ dep_relations = read_dep_relations()
 class FeatureExtractor(object):
     def __init__(self, word_vocab_file, pos_vocab_file):
         self.word_vocab = self.read_vocab(word_vocab_file)
-        # print("word_vocab", self.word_vocab)
         self.pos_vocab = self.read_vocab(pos_vocab_file)
         self.output_labels = self.make_output_labels()
+        self.output_format = 'pt' # 'pt' or 'tf'
 
     def make_output_labels(self):
         labels = []
@@ -193,22 +140,15 @@ class FeatureExtractor(object):
         return vocab
 
     def get_input_representation(self, words, pos, state):
-        # TODO: Write this method for Part 2
-        # print("words", words)
         # self.word_vocab is a dictionary of words and their indices
         # state contains two lists: stack and buffer
         # return a numpy array of the indices of the first three words in the stack and buffer
         # if there are less than three words in the stack or buffer, pad with the index for "<NULL>"
-        # print("words", words)
-        # print("pos", pos)
-        # print("state.stack", state.stack)
-        # print("state.buffer", state.buffer)
         rep = np.zeros(6)
         for i in range(3):
             if len(state.stack) > i:
                 idx = state.stack[-i - 1]
                 word = words[idx] if not words[idx] else words[idx].lower()
-                # print("word", word)
                 if word in self.word_vocab:
                     rep[i] = self.word_vocab[word]
                 elif word is None:
@@ -222,7 +162,6 @@ class FeatureExtractor(object):
             if len(state.buffer) > i:
                 idx = state.buffer[-i - 1]
                 word = words[idx] if not words[idx] else words[idx].lower()
-                # print("word", word)
                 if word in self.word_vocab:
                     rep[i + 3] = self.word_vocab[word]
                 elif word is None:
@@ -233,45 +172,35 @@ class FeatureExtractor(object):
                     rep[i + 3] = self.word_vocab["<UNK>"]
             else:
                 rep[i + 3] = self.word_vocab["<NULL>"]
-        # print("rep", rep)
         return rep
 
     def get_output_representation(self, output_pair):
-        # TODO: Write this method for Part 2
         # each output_pair is a tuple of (transition, label)
         # there are three possible transitions: "shift", "left_arc", "right_arc"
         # there are 45 possible labels, all included in the dep_relations list
         # return a numpy array of length 91
-        # use keras.utils.to_categorical to convert the transition and label into a one-hot vector
-        # output_labels is a dictionary of (transition, label) pairs and their indices
-        # print("output_pair", output_pair)
-        # print("self.output_labels", self.output_labels)
-        # print("output_pair in self.output_labels", output_pair in self.output_labels)
-        # print("self.output_labels[output_pair]", self.output_labels[output_pair])
-        # print(
-        #     "keras.utils.to_categorical(self.output_labels[output_pair], 91)",
-        #     keras.utils.to_categorical(self.output_labels[output_pair], 91),
-        # )
-        # return keras.utils.to_categorical(self.output_labels[output_pair], 91) # original -xy
-        return keras.utils.to_categorical(self.output_labels[output_pair], len(self.output_labels)) # xy
+        if self.output_format == 'pt':
+            return np.array(self.output_labels[output_pair])
+        elif self.output_format == 'tf':
+            return keras.utils.to_categorical(self.output_labels[output_pair], len(self.output_labels)) # xy
 
 
-def get_training_matrices(extractor, in_file):
+def get_training_matrices(extractor, input_filename: str, n=np.inf) -> Tuple[List, List]:
     inputs = []
     outputs = []
     count = 0
-    for dtree in conll_reader(in_file):
+    with open(input_filename, "r") as in_file:
+        dtrees = list(conll_reader(in_file))
+    for dtree in tqdm(dtrees, total=min(len(dtrees), n)):
         words = dtree.words()
         pos = dtree.pos()
         for state, output_pair in get_training_instances(dtree):
             inputs.append(extractor.get_input_representation(words, pos, state))
             outputs.append(extractor.get_output_representation(output_pair))
-        if count % 100 == 0:
-            sys.stdout.write(str(count) + "\n")
-            sys.stdout.flush()
         count += 1
-    sys.stdout.write("\n")
-    return np.vstack(inputs), np.vstack(outputs)
+        if count >= n:
+            break
+    return inputs, outputs
 
 
 if __name__ == "__main__":
@@ -290,18 +219,18 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    with open("data/train.conll", "r") as in_file:
-        extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
-        print("Starting feature extraction... (each . represents 100 sentences)")
-        inputs, outputs = get_training_matrices(extractor, in_file)
-        print("Writing output...")
-        np.save("data/input_train.npy", inputs)
-        np.save("data/target_train.npy", outputs)
+    input_file = 'data/train.conll'
+    extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
+    print("Starting feature extraction...")
 
-    # with open(sys.argv[1], "r") as in_file:
-    #     extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
-    #     print("Starting feature extraction... (each . represents 100 sentences)")
-    #     inputs, outputs = get_training_matrices(extractor, in_file)
-    #     print("Writing output...")
-    #     np.save(sys.argv[2], inputs)
-    #     np.save(sys.argv[3], outputs)
+    # prepare two versions of target
+    extractor.output_format = 'pt'
+    inputs, outputs_pt = get_training_matrices(extractor, in_file)
+    inputs = np.stack(inputs)
+    outputs_pt = np.stack(outputs_pt)
+    np.save("data/target_train.npy", outputs_pt)
+
+    extractor.output_format = 'tf'
+    _, outputs_tf = get_training_matrices(extractor, input_file)
+    outputs_tf = np.stack(outputs_tf)
+    np.save("data/target_train_tf.npy", outputs_tf)
