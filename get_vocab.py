@@ -1,6 +1,13 @@
 import sys
-from conll_reader import conll_reader
+import os
 from collections import defaultdict
+
+if os.path.exists('parse_utils.py'):
+    from parse_utils import conll_reader
+elif os.path.exists('conll_utils.py'):
+    from dep_utils import conll_reader
+else:
+    raise Exception('Could not find parse_utils.py or conll_utils.py')
 
 
 def get_vocabularies(conll_reader):
@@ -8,12 +15,11 @@ def get_vocabularies(conll_reader):
     pos_set = set()
     for dtree in conll_reader:
         for ident, node in dtree.deprels.items():
-            if node.pos != "CD" and node.pos != "NNP":
+            if node.pos != "CD" and node.pos != "NNP": # remove numbers (e.g., ) and proper nouns
                 word_set[node.word.lower()] += 1
             pos_set.add(node.pos)
 
     word_set = set(x for x in word_set if word_set[x] > 1)
-
     word_list = ["<CD>", "<NNP>", "<UNK>", "<ROOT>", "<NULL>"] + list(word_set)
     pos_list = ["<UNK>", "<ROOT>", "<NULL>"] + list(pos_set)
 

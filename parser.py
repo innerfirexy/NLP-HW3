@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 import keras
 import torch
-from train_pt import Model as PyTorchModel
+from model import BaseModel as PyTorchModel
 
 from extract_training_data import FeatureExtractor, State
 
@@ -17,7 +17,6 @@ class Parser(object):
         if backend == 'pt':
             self.pt_model = PyTorchModel(
                 word_vocab_size=len(extractor.word_vocab),
-                pos_vocab_size=len(extractor.pos_vocab),
                 output_size=len(extractor.output_labels)
             )
             self.pt_model.load_state_dict(torch.load(modelfile))

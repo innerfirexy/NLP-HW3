@@ -3,11 +3,14 @@ from parser import Parser
 from extract_training_data import FeatureExtractor
 from dep_utils import conll_reader
 import sys
+import os
 from tqdm import tqdm
 import argparse
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--model", type=str, default="model.pt")
+argparser.add_argument('--words_vocab', default='words_vocab.txt')
+argparser.add_argument('--pos_vocab', default='pos_vocab.txt')
 
 
 def compare_parser(target, predict):
@@ -27,27 +30,22 @@ def compare_parser(target, predict):
 if __name__ == "__main__":
     # parse arguments
     args = argparser.parse_args()
+    # WORD_VOCAB_FILE = "data/words.vocab"
+    # POS_VOCAB_FILE = "data/pos.vocab"
 
     start = time.time()
     print("Start time: ", start)
     # convert start time to readable format
     print("Start time: ", time.ctime(start))
 
-    WORD_VOCAB_FILE = "data/words.vocab"
-    POS_VOCAB_FILE = "data/pos.vocab"
-
     try:
-        word_vocab_f = open(WORD_VOCAB_FILE, "r")
-        pos_vocab_f = open(POS_VOCAB_FILE, "r")
+        word_vocab_file = open(args.words_vocab, "r")
+        pos_vocab_file = open(args.pos_vocab, "r")
     except FileNotFoundError:
-        print(
-            "Could not find vocabulary files {} and {}".format(
-                WORD_VOCAB_FILE, POS_VOCAB_FILE
-            )
-        )
+        print(f'Could not find vocabulary files {args.words_vocab} and {args.pos_vocab}')
         sys.exit(1)
 
-    extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
+    extractor = FeatureExtractor(word_vocab_file, pos_vocab_file)
     parser = Parser(extractor, args.model, backend='pt')
 
     total_labeled_correct = 0
@@ -56,8 +54,12 @@ if __name__ == "__main__":
     las_list = []
     uas_list = []
 
-    eval_files = ['data/dev.conll', 'data/test.conll']
-    for eval_file in eval_files:
+    if not os.path.exists('data'):
+        print("Error: data directory not found")
+        sys.exit(1)
+    EVAL_FILES = ['data/dev.conll', 'data/test.conll']
+
+    for eval_file in EVAL_FILES:
         print(f'Evaluating on {eval_file}')
         with open(eval_file, 'r') as in_file:
             dtrees = list(conll_reader(in_file))

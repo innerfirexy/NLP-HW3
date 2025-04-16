@@ -1,8 +1,8 @@
 import torch.nn as nn
 
-class Model(nn.Module):
-    def __init__(self, word_vocab_size, pos_vocab_size, output_size):
-        super(Model, self).__init__()
+class BaseModel(nn.Module):
+    def __init__(self, word_vocab_size, output_size):
+        super(BaseModel, self).__init__()
         self.embedding = nn.Embedding(word_vocab_size, 32)
         self.flatten = nn.Flatten()
         self.dense1 = nn.Linear(32 * 6, 100)  # 32 * input_length(6)

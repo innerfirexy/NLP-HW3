@@ -2,13 +2,19 @@
 from collections import defaultdict
 import copy
 import sys
+import os
 from tqdm import tqdm
 from typing import Tuple, List
-
 import keras
 import numpy as np
+import argparse
 
 from dep_utils import conll_reader
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument('train_data', help='Path to the training data')
+argparser.add_argument('--words_vocab', default='words_vocab.txt')
+argparser.add_argument('--pos_vocab', default='pos_vocab.txt')
 
 
 class State(object):
@@ -204,33 +210,34 @@ def get_training_matrices(extractor, input_filename: str, n=np.inf) -> Tuple[Lis
 
 
 if __name__ == "__main__":
+    args = argparser.parse_args()
     # print("Loading data... (this might take a minute)")
-    WORD_VOCAB_FILE = "data/words.vocab"
-    POS_VOCAB_FILE = "data/pos.vocab"
+    # WORD_VOCAB_FILE = "data/words.vocab"
+    # POS_VOCAB_FILE = "data/pos.vocab"
+
+    # input_file = 'data/train.conll'
+    input_file = args.train_data
+    assert os.path.exists(input_file)
 
     try:
-        word_vocab_f = open(WORD_VOCAB_FILE, "r")
-        pos_vocab_f = open(POS_VOCAB_FILE, "r")
+        word_vocab_file = open(args.words_vocab, "r")
+        pos_vocab_file = open(args.pos_vocab, "r")
     except FileNotFoundError:
-        print(
-            "Could not find vocabulary files {} and {}".format(
-                WORD_VOCAB_FILE, POS_VOCAB_FILE
-            )
-        )
+        print(f'Could not find vocabulary files {args.words_vocab} and {args.pos_vocab}')
         sys.exit(1)
 
-    input_file = 'data/train.conll'
-    extractor = FeatureExtractor(word_vocab_f, pos_vocab_f)
+    extractor = FeatureExtractor(word_vocab_file, pos_vocab_file)
     print("Starting feature extraction...")
 
     # prepare two versions of target
     extractor.output_format = 'pt'
-    inputs, outputs_pt = get_training_matrices(extractor, in_file)
+    inputs, outputs_pt = get_training_matrices(extractor, input_file)
     inputs = np.stack(inputs)
     outputs_pt = np.stack(outputs_pt)
-    np.save("data/target_train.npy", outputs_pt)
+    np.save('data/input_train.npy', inputs)
+    np.save('data/target_train.npy', outputs_pt)
 
-    extractor.output_format = 'tf'
-    _, outputs_tf = get_training_matrices(extractor, input_file)
-    outputs_tf = np.stack(outputs_tf)
-    np.save("data/target_train_tf.npy", outputs_tf)
+    # extractor.output_format = 'tf'
+    # _, outputs_tf = get_training_matrices(extractor, input_file)
+    # outputs_tf = np.stack(outputs_tf)
+    # np.save("data/target_train_tf.npy", outputs_tf)
